@@ -31,15 +31,16 @@ public class MainActivity extends AppCompatActivity {
     private TextView mTextView;
     private final int RESULT_CAMERA = 22;
     private final int RESULT_PERMISSION = 23;
+    private boolean mUseProvider = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        //if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-        //    StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
-        //    StrictMode.setVmPolicy(builder.build());
-        //}
+        if (!mUseProvider && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
+            StrictMode.setVmPolicy(builder.build());
+        }
         mTextView = findViewById(R.id.click_camera);
         mTextView.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -100,14 +101,14 @@ public class MainActivity extends AppCompatActivity {
             //从Android 7.0开始，一个应用提供自身文件给其它应用使用时，
             //如果给出一个file://格式的URI的话，应用会抛出FileUriExposedException。
             //这是由于谷歌认为目标app可能不具有文件权限，会造成潜在的问题
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            if (mUseProvider && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 contentUri =
                         FileProvider.getUriForFile(this, "com.camerademo.fileprovider", photoFile);
             } else {
                 contentUri = Uri.fromFile(photoFile);
             }
             takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, contentUri);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            if (mUseProvider && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 takePictureIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
                         | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             }
