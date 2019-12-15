@@ -38,6 +38,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         if (!mUseProvider && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            //这种方式拍摄的图片有问题，读取不小，大小为0
             StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
             StrictMode.setVmPolicy(builder.build());
         }
