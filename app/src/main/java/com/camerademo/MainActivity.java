@@ -44,7 +44,6 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         if (!mUseProvider && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            //这种方式拍摄的图片有问题，读取不小，大小为0
             StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
             StrictMode.setVmPolicy(builder.build());
         }
@@ -55,6 +54,7 @@ public class MainActivity extends AppCompatActivity {
                 clickCamera();
             }
         });
+        mCameraImageview = findViewById(R.id.image_view);
     }
 
     // 请求权限回调方法
@@ -122,11 +122,10 @@ public class MainActivity extends AppCompatActivity {
                 takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, contentUri);
             }
             if (mUseProvider && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                //给目标应用一个临时的授权
                 takePictureIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
                         | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             }
-            takePictureIntent.setFlags(
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
         }
         //跳转界面传回拍照所得数据
         startActivityForResult(takePictureIntent, RESULT_CAMERA);
@@ -146,7 +145,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private File createImageFile() {
-        File imagePath = new File(Environment.getExternalStorageDirectory(), "images");
+        File imagePath = new File(getExternalFilesDir(""), "images");
         if (!imagePath.exists()) {
             imagePath.mkdirs();
         }
