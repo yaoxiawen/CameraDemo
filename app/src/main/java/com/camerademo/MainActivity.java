@@ -107,28 +107,28 @@ public class MainActivity extends AppCompatActivity {
         // Ensure that there's a camera activity to handle the intent
         //通过Intent的resolveActivity方法，并想该方法传入包管理器可以对包管理器进行查询以确定是否有Activity能够启动该Intent
         if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
-            Uri contentUri;
-            File photoFile = createImageFile();
-            //从Android 7.0开始，一个应用提供自身文件给其它应用使用时，
-            //如果给出一个file://格式的URI的话，应用会抛出FileUriExposedException。
-            //这是由于谷歌认为目标app可能不具有文件权限，会造成潜在的问题
-            if (mUseProvider && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                contentUri =
-                        FileProvider.getUriForFile(this, "com.camerademo.fileprovider", photoFile);
-            } else {
-                contentUri = Uri.fromFile(photoFile);
-            }
             if (mUseOutput) {
+                Uri contentUri;
+                File photoFile = createImageFile();
+                //从Android 7.0开始，一个应用提供自身文件给其它应用使用时，
+                //如果给出一个file://格式的URI的话，应用会抛出FileUriExposedException。
+                //这是由于谷歌认为目标app可能不具有文件权限，会造成潜在的问题
+                if (mUseProvider && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    contentUri = FileProvider.getUriForFile(this, "com.camerademo.fileprovider",
+                            photoFile);
+                    //给目标应用一个临时的授权
+                    takePictureIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                } else {
+                    contentUri = Uri.fromFile(photoFile);
+                }
+
                 takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, contentUri);
             }
-            if (mUseProvider && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                //给目标应用一个临时的授权
-                takePictureIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
-                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            }
+
+            //跳转界面传回拍照所得数据
+            startActivityForResult(takePictureIntent, RESULT_CAMERA);
         }
-        //跳转界面传回拍照所得数据
-        startActivityForResult(takePictureIntent, RESULT_CAMERA);
     }
 
     /**
@@ -170,7 +170,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == RESULT_OK) {
+        if (resultCode == RESULT_OK) {
             if (requestCode == RESULT_CAMERA && data != null) {
                 if (!mUseOutput) {
                     //没有指定Intent里面的EXTRA_OUTPUT参数
