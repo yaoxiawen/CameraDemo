@@ -9,6 +9,7 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -17,6 +18,7 @@ import android.os.StrictMode;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -29,9 +31,13 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     private TextView mTextView;
+    private ImageView mCameraImageview;
     private final int RESULT_CAMERA = 22;
     private final int RESULT_PERMISSION = 23;
+    //是否使用FileProvider开关
     private boolean mUseProvider = true;
+    //是否使用EXTRA_OUTPUT参数开关
+    private boolean mUseOutput = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,6 +91,10 @@ public class MainActivity extends AppCompatActivity {
                     != PackageManager.PERMISSION_GRANTED) {
                 permissionList.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
             }
+            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
+                    != PackageManager.PERMISSION_GRANTED) {
+                permissionList.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+            }
             if (!permissionList.isEmpty()) {
                 //需要<uses-permission android:name="android.permission.READ_PHONE_STATE"/>才能出权限获取的弹窗
                 requestPermissions(permissionList.toArray(new String[permissionList.size()]),
@@ -108,11 +118,15 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 contentUri = Uri.fromFile(photoFile);
             }
-            takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, contentUri);
+            if (mUseOutput) {
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, contentUri);
+            }
             if (mUseProvider && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 takePictureIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
                         | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             }
+            takePictureIntent.setFlags(
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
         }
         //跳转界面传回拍照所得数据
         startActivityForResult(takePictureIntent, RESULT_CAMERA);
@@ -132,17 +146,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private File createImageFile() {
-        File imagePath = new File(getFilesDir(), "images");
+        File imagePath = new File(Environment.getExternalStorageDirectory(), "images");
         if (!imagePath.exists()) {
             imagePath.mkdirs();
         }
-        File image = null;
-        try {
-            image = File.createTempFile(generateFileName(),  /* prefix */
-                    ".jpg",         /* suffix */
-                    imagePath     /* directory */);
-        } catch (IOException e) {
-            e.printStackTrace();
+
+        File image = new File(imagePath, generateFileName() + ".jpg");
+        if (!image.exists()) {
+            try {
+                image.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         //mCurrentPhotoPath = image.getAbsolutePath();
@@ -158,6 +173,20 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == RESULT_OK) {
             if (requestCode == RESULT_CAMERA && data != null) {
+                if (!mUseOutput) {
+                    //没有指定Intent里面的EXTRA_OUTPUT参数
+                    //获得很小的预览图，用于设置头像等地方。
+                    Bitmap bitmap;
+                    try {
+                        //"data"这个居然没用常量定义,也是醉了,我们可以发现它直接把bitmap序列化到intent里面了。
+                        bitmap = data.getExtras().getParcelable("data");
+                        //TODO:do something with bitmap, Do NOT forget call Bitmap.recycler();
+                        mCameraImageview.setImageBitmap(bitmap);
+                    } catch (ClassCastException e) {
+                        //do something with exceptions
+                        e.printStackTrace();
+                    }
+                }
             }
         }
     }

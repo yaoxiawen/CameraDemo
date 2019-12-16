@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <files-path name="my_images" path="images/"/>
+<!--    paths内还可以声明很多种类型的标签，每一种标签都代表了一个路径-->
+<!--    <files-path /> = getFilesDir()-->
+<!--    <cache-path /> = getCacheDir()-->
+<!--    <external-path /> = Environment.getExternalStorageDirectory()-->
+<!--    <external-files-path /> = Context#getExternalFilesDir(String) 或 Context.getExternalFilesDir(null)-->
+<!--    <external-cache-path /> = Context.getExternalCacheDir()-->
+<!--    <external-media-path /> = Context.getExternalMediaDirs()-->
 </paths>
