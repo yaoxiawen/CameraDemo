@@ -16,14 +16,12 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.StrictMode;
 import android.provider.MediaStore;
-import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -31,10 +29,12 @@ import java.util.Date;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
-    private TextView mTextView;
+    private TextView mTextViewCamera;
+    private TextView mTextViewGallery;
     private ImageView mCameraImageview;
     private final int RESULT_CAMERA = 22;
-    private final int RESULT_PERMISSION = 23;
+    private final int RESULT_GALLERY = 23;
+    private final int RESULT_PERMISSION = 25;
     //是否使用FileProvider开关
     private boolean mUseProvider = true;
     //是否使用EXTRA_OUTPUT参数开关
@@ -50,11 +50,18 @@ public class MainActivity extends AppCompatActivity {
             StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
             StrictMode.setVmPolicy(builder.build());
         }
-        mTextView = findViewById(R.id.click_camera);
-        mTextView.setOnClickListener(new View.OnClickListener() {
+        mTextViewCamera = findViewById(R.id.click_camera);
+        mTextViewCamera.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 clickCamera();
+            }
+        });
+        mTextViewGallery = findViewById(R.id.click_gallery);
+        mTextViewGallery.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                clickGallery();
             }
         });
         mCameraImageview = findViewById(R.id.image_view);
@@ -82,6 +89,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * 调用系统相机拍照
+     */
     private void clickCamera() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             //Android系统6.0之后动态申请权限
@@ -170,6 +180,46 @@ public class MainActivity extends AppCompatActivity {
         return new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
     }
 
+    /**
+     * 调用系统相册
+     */
+    private void clickGallery() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            //Android系统6.0之后动态申请权限
+            List<String> permissionList = new ArrayList<>();
+            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    != PackageManager.PERMISSION_GRANTED) {
+                permissionList.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            }
+            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
+                    != PackageManager.PERMISSION_GRANTED) {
+                permissionList.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+            }
+            if (!permissionList.isEmpty()) {
+                //需要<uses-permission android:name="android.permission.READ_PHONE_STATE"/>才能出权限获取的弹窗
+                requestPermissions(permissionList.toArray(new String[permissionList.size()]),
+                        RESULT_PERMISSION);
+                return;
+            }
+        }
+        //1、调用系统相册App，浏览所用图片
+        //Intent intent = new Intent(Intent.ACTION_VIEW);
+        //intent.setType("image/*");
+        //startActivity(intent);
+
+        //2、调用系统相册，并从中选择一张照片
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("image/*");
+        startActivityForResult(intent,RESULT_GALLERY);
+        //startActivityForResult(Intent.createChooser(intent, "Select Picture"),RESULT_GALLERY);
+
+        //3、调用系统相册查看单张（或特定）图片
+        //下方是是通过Intent调用系统的图片查看器的关键代码
+        //Intent intent = new Intent(Intent.ACTION_VIEW);
+        //intent.setDataAndType(Uri.fromFile(file), "image/*");
+        //startActivity(intent);
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -194,9 +244,13 @@ public class MainActivity extends AppCompatActivity {
                     //两种方式获取到本地图片
                     //InputStream stream = getContentResolver().openInputStream(mContentUri);
                     //Bitmap bitmap = BitmapFactory.decodeStream(stream);
+                    Toast.makeText(this,"FileName:"+mFileName,Toast.LENGTH_SHORT).show();
                     Bitmap bitmap = BitmapFactory.decodeFile(mFileName);
                     mCameraImageview.setImageBitmap(bitmap);
                 }
+            }
+            if (requestCode == RESULT_GALLERY) {
+
             }
         }
     }
