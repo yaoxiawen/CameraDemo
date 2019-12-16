@@ -10,10 +10,10 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.StrictMode;
 import android.provider.MediaStore;
 import android.util.Log;
@@ -23,6 +23,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -38,6 +39,8 @@ public class MainActivity extends AppCompatActivity {
     private boolean mUseProvider = true;
     //是否使用EXTRA_OUTPUT参数开关
     private boolean mUseOutput = true;
+    private Uri mContentUri;
+    private String mFileName;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -108,22 +111,22 @@ public class MainActivity extends AppCompatActivity {
         //通过Intent的resolveActivity方法，并想该方法传入包管理器可以对包管理器进行查询以确定是否有Activity能够启动该Intent
         if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
             if (mUseOutput) {
-                Uri contentUri;
                 File photoFile = createImageFile();
+                mFileName = photoFile.getAbsolutePath();
                 //从Android 7.0开始，一个应用提供自身文件给其它应用使用时，
                 //如果给出一个file://格式的URI的话，应用会抛出FileUriExposedException。
                 //这是由于谷歌认为目标app可能不具有文件权限，会造成潜在的问题
                 if (mUseProvider && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    contentUri = FileProvider.getUriForFile(this, "com.camerademo.fileprovider",
+                    mContentUri = FileProvider.getUriForFile(this, "com.camerademo.fileprovider",
                             photoFile);
                     //给目标应用一个临时的授权
                     takePictureIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
                             | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                 } else {
-                    contentUri = Uri.fromFile(photoFile);
+                    mContentUri = Uri.fromFile(photoFile);
                 }
 
-                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, contentUri);
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, mContentUri);
             }
 
             //跳转界面传回拍照所得数据
@@ -171,20 +174,28 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK) {
-            if (requestCode == RESULT_CAMERA && data != null) {
+            if (requestCode == RESULT_CAMERA) {
                 if (!mUseOutput) {
-                    //没有指定Intent里面的EXTRA_OUTPUT参数
-                    //获得很小的预览图，用于设置头像等地方。
-                    Bitmap bitmap;
-                    try {
-                        //"data"这个居然没用常量定义,也是醉了,我们可以发现它直接把bitmap序列化到intent里面了。
-                        bitmap = data.getExtras().getParcelable("data");
-                        //TODO:do something with bitmap, Do NOT forget call Bitmap.recycler();
-                        mCameraImageview.setImageBitmap(bitmap);
-                    } catch (ClassCastException e) {
-                        //do something with exceptions
-                        e.printStackTrace();
+                    if (data != null) {
+                        //没有指定Intent里面的EXTRA_OUTPUT参数
+                        //获得很小的预览图，用于设置头像等地方。
+                        Bitmap bitmap;
+                        try {
+                            //"data"这个居然没用常量定义,也是醉了,我们可以发现它直接把bitmap序列化到intent里面了。
+                            bitmap = data.getExtras().getParcelable("data");
+                            //TODO:do something with bitmap, Do NOT forget call Bitmap.recycler();
+                            mCameraImageview.setImageBitmap(bitmap);
+                        } catch (ClassCastException e) {
+                            //do something with exceptions
+                            e.printStackTrace();
+                        }
                     }
+                } else {
+                    //两种方式获取到本地图片
+                    //InputStream stream = getContentResolver().openInputStream(mContentUri);
+                    //Bitmap bitmap = BitmapFactory.decodeStream(stream);
+                    Bitmap bitmap = BitmapFactory.decodeFile(mFileName);
+                    mCameraImageview.setImageBitmap(bitmap);
                 }
             }
         }
