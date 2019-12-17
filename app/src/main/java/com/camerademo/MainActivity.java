@@ -6,16 +6,21 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
 
 import android.Manifest;
+import android.annotation.TargetApi;
+import android.content.ContentUris;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.StrictMode;
+import android.provider.DocumentsContract;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -157,6 +162,10 @@ public class MainActivity extends AppCompatActivity {
         return list.size() > 0;
     }
 
+    /**
+     * 调用系统相机拍照的照片存储位置
+     * @return
+     */
     private File createImageFile() {
         File imagePath = new File(getExternalFilesDir(""), "images");
         if (!imagePath.exists()) {
@@ -171,11 +180,13 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
             }
         }
-
-        //mCurrentPhotoPath = image.getAbsolutePath();
         return image;
     }
 
+    /**
+     * 调用系统相机拍照的照片命名
+     * @return
+     */
     public static String generateFileName() {
         return new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
     }
@@ -210,7 +221,7 @@ public class MainActivity extends AppCompatActivity {
         //2、调用系统相册，并从中选择一张照片
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("image/*");
-        startActivityForResult(intent,RESULT_GALLERY);
+        startActivityForResult(intent, RESULT_GALLERY);
         //startActivityForResult(Intent.createChooser(intent, "Select Picture"),RESULT_GALLERY);
 
         //3、调用系统相册查看单张（或特定）图片
@@ -218,6 +229,9 @@ public class MainActivity extends AppCompatActivity {
         //Intent intent = new Intent(Intent.ACTION_VIEW);
         //intent.setDataAndType(Uri.fromFile(file), "image/*");
         //startActivity(intent);
+
+        //Intent albumIntent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        //startActivityForResult(albumIntent, RESULT_GALLERY);
     }
 
     @Override
@@ -244,14 +258,89 @@ public class MainActivity extends AppCompatActivity {
                     //两种方式获取到本地图片
                     //InputStream stream = getContentResolver().openInputStream(mContentUri);
                     //Bitmap bitmap = BitmapFactory.decodeStream(stream);
-                    Toast.makeText(this,"FileName:"+mFileName,Toast.LENGTH_SHORT).show();
                     Bitmap bitmap = BitmapFactory.decodeFile(mFileName);
                     mCameraImageview.setImageBitmap(bitmap);
                 }
             }
             if (requestCode == RESULT_GALLERY) {
-
+                //判断手机系统版本号
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT ) {
+                    //4.4及以上系统使用这个方法处理图片
+                    handleImgeOnKitKat(data);
+                }else {
+                    handleImageBeforeKitKat(data);
+                }
             }
+        }
+    }
+
+    /**
+     *4.4以下系统处理图片的方法
+     * */
+    private void handleImageBeforeKitKat(Intent data) {
+        Uri uri = data.getData();
+        String imagePath = getImagePath(uri,null);
+        displayImage(imagePath);
+    }
+
+    /**
+     * 4.4及以上系统处理图片的方法
+     */
+    @TargetApi(Build.VERSION_CODES.KITKAT)
+    private void handleImgeOnKitKat(Intent data) {
+        String imagePath = null;
+        Uri uri = data.getData();
+        if (DocumentsContract.isDocumentUri(this, uri)) {
+            //如果是document类型的uri，则通过document id处理
+            String docId = DocumentsContract.getDocumentId(uri);
+            if ("com.android.providers.media.documents".equals(uri.getAuthority())) {
+                //解析出数字格式的id
+                String id = docId.split(":")[1];
+                String selection = MediaStore.Images.Media._ID + "=" + id;
+                imagePath = getImagePath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, selection);
+            } else if ("com.android.providers.downloads.documents".equals(uri.getAuthority())) {
+                Uri contentUri =
+                        ContentUris.withAppendedId(Uri.parse("content://downloads/public_downloads"),
+                                Long.valueOf(docId));
+                imagePath = getImagePath(contentUri, null);
+            }
+        } else if ("content".equalsIgnoreCase(uri.getScheme())) {
+            //如果是content类型的uri，则使用普通方式处理
+            imagePath = getImagePath(uri, null);
+        } else if ("file".equalsIgnoreCase(uri.getScheme())) {
+            //如果是file类型的uri，直接获取图片路径即可
+            imagePath = uri.getPath();
+        }
+        //根据图片路径显示图片
+        if (imagePath != null) {
+            displayImage(imagePath);
+        }
+    }
+
+    /**
+     * 通过uri和selection来获取真实的图片路径
+     */
+    private String getImagePath(Uri uri, String selection) {
+        String path = null;
+        Cursor cursor = getContentResolver().query(uri, null, selection, null, null);
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                path = cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA));
+            }
+            cursor.close();
+        }
+        return path;
+    }
+
+    /**
+     * 根据图片路径显示图片的方法
+     */
+    private void displayImage(String imagePath) {
+        if (imagePath != null) {
+            Bitmap bitmap = BitmapFactory.decodeFile(imagePath);
+            mCameraImageview.setImageBitmap(bitmap);
+        } else {
+            Toast.makeText(MainActivity.this, "failed to get image", Toast.LENGTH_SHORT).show();
         }
     }
 }
